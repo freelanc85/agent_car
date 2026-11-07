@@ -1,0 +1,67 @@
+#!/usr/bin/env python3
+"""
+Drop a trained car onto any track(s) and see how it does.
+
+    python evaluate.py runs/smoke --tracks random:5000..5009
+    python evaluate.py runs/smoke --tracks preset:hairpins,tracks/my_track.json --save
+
+--save adds a replay to the run so you can watch it in the dashboard.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import time
+from pathlib import Path
+
+import numpy as np
+
+from selfdrive.brain import Brain
+from selfdrive.runlog import record_drive, write_json
+from selfdrive.sim import SimConfig, Simulator
+from selfdrive.track import load_track, parse_track_list
+
+
+def main():
+    p = argparse.ArgumentParser(description=__doc__, formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument("run", help="run directory (contains best_genome.json)")
+    p.add_argument("--tracks", default="random:5000..5019")
+    p.add_argument("--laps", type=int, default=None)
+    p.add_argument("--save", action="store_true", help="save a replay into the run for the dashboard")
+    args = p.parse_args()
+
+    run = Path(args.run)
+    g = json.loads((run / "best_genome.json").read_text())
+    brain = Brain(g["layers"])
+    genome = np.array(g["genome"])[None]
+    sim_cfg = {**g["sim"], "sensor_noise": 0.0}
+    if args.laps:
+        sim_cfg["laps"] = args.laps
+    cfg = SimConfig(**sim_cfg)
+
+    print(f"{'track':<28}{'progress':>9}{'finished':>10}{'time (s)':>10}")
+    rows, drives = [], []
+    for spec in parse_track_list(args.tracks):
+        sim = Simulator(load_track(spec), cfg)
+        r = sim.run(brain, genome)
+        rows.append((spec, r["progress"][0], r["finished"][0], r["finish_time"][0]))
+        t = "-" if np.isnan(r["finish_time"][0]) else f"{r['finish_time'][0]:.1f}"
+        print(f"{spec:<28}{100*r['progress'][0]:8.1f}%{str(bool(r['finished'][0])):>10}{t:>10}")
+        if args.save:
+            drives.append(record_drive(sim, brain, genome, "eval"))
+    prog = np.mean([r[1] for r in rows])
+    fin = np.mean([r[2] for r in rows])
+    print(f"\n{len(rows)} tracks: mean progress {100*prog:.1f}%, finished {100*fin:.0f}%")
+
+    if args.save:
+        status_p = run / "status.json"
+        status = json.loads(status_p.read_text())
+        key = time.strftime("eval_%H%M%S")
+        write_json(run / "replays" / f"{key}.json", dict(label=f"eval: {args.tracks}", drives=drives))
+        status["replays"].append(dict(key=key, label=f"eval: {args.tracks}"))
+        write_json(status_p, status)
+        print(f"saved replay '{key}' — open the dashboard to watch it")
+
+
+if __name__ == "__main__":
+    main()
