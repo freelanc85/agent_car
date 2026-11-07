@@ -29,6 +29,7 @@ def main():
     p.add_argument("--tracks", default="random:5000..5019")
     p.add_argument("--laps", type=int, default=None)
     p.add_argument("--save", action="store_true", help="save a replay into the run for the dashboard")
+    p.add_argument("--json", default=None, help="also write the results table to this JSON file")
     args = p.parse_args()
 
     run = Path(args.run)
@@ -57,6 +58,13 @@ def main():
     key = time.strftime("eval_%H%M%S")
     files = save_track_images(run / "images" / key, [(t, "eval") for t in tracks], drive_paths(drives, tracks))
     print(f"track images (with the car's path): {files[-1]}")
+
+    if args.json:
+        Path(args.json).write_text(json.dumps(dict(
+            key=key, mean_progress=float(prog), finish_rate=float(fin),
+            sheet=files[-1].relative_to(run).as_posix(),
+            rows=[dict(track=t, progress=float(p_), finished=bool(f), time=None if np.isnan(tm) else float(tm))
+                  for t, p_, f, tm in rows])))
 
     if args.save:
         status_p = run / "status.json"

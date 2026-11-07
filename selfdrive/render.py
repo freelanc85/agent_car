@@ -35,7 +35,7 @@ INK = (27, 31, 36)
 # --------------------------------------------------------------------------- #
 # PNG writer
 # --------------------------------------------------------------------------- #
-def save_png(rgb: np.ndarray, path) -> Path:
+def png_bytes(rgb: np.ndarray) -> bytes:
     rgb = np.ascontiguousarray(rgb, dtype=np.uint8)
     h, w, _ = rgb.shape
     raw = b"".join(b"\x00" + rgb[y].tobytes() for y in range(h))
@@ -44,10 +44,14 @@ def save_png(rgb: np.ndarray, path) -> Path:
         return struct.pack(">I", len(data)) + tag + data + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF)
 
     png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0))
-           + chunk(b"IDAT", zlib.compress(raw, 9)) + chunk(b"IEND", b""))
+           + chunk(b"IDAT", zlib.compress(raw, 6)) + chunk(b"IEND", b""))
+    return png
+
+
+def save_png(rgb: np.ndarray, path) -> Path:
     path = Path(path)
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_bytes(png)
+    path.write_bytes(png_bytes(rgb))
     return path
 
 

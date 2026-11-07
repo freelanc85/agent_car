@@ -74,6 +74,29 @@ td.n, th.n { text-align: right; }
 code { background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 1px 6px; font-size: 12px; }
 pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; padding: 10px; overflow: auto; font-size: 12px; }
 .hidden { display: none !important; }
+.btn.small { padding: 3px 9px; font-size: 12px; }
+.btn.danger { color: var(--bad); border-color: color-mix(in srgb, var(--bad) 40%, var(--line)); }
+.btn.big { padding: 10px 22px; font-size: 15px; font-weight: 600; }
+.btn:disabled { opacity: .5; cursor: default; }
+.err { background: color-mix(in srgb, var(--bad) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--bad) 40%, var(--line));
+  color: var(--ink); border-radius: 10px; padding: 10px 12px; white-space: pre-wrap; font-size: 13px; margin: 8px 0; }
+.note { background: color-mix(in srgb, var(--good) 10%, var(--panel)); border: 1px solid color-mix(in srgb, var(--good) 40%, var(--line));
+  border-radius: 10px; padding: 8px 12px; font-size: 13px; margin: 8px 0; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; margin: 6px 0; }
+.chip { display: flex; flex-direction: column; align-items: center; gap: 2px; border: 1px solid var(--line); border-radius: 10px;
+  padding: 6px; background: var(--bg); width: 118px; position: relative; font-size: 11px; text-align: center; }
+.chip img { width: 104px; height: 78px; object-fit: contain; border-radius: 6px; background: #f6f7f9; }
+.chip .x { position: absolute; top: 2px; right: 4px; border: 0; background: none; color: var(--muted); cursor: pointer; font-size: 15px; line-height: 1; }
+.chip .x:hover { color: var(--bad); }
+.form-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); gap: 10px 14px; }
+.field label { display: block; font-size: 12px; font-weight: 600; margin-bottom: 3px; }
+.field input[type=number], .field input[type=text], input.txt { width: 100%; padding: 6px 8px; border-radius: 8px; border: 1px solid var(--line);
+  background: var(--panel); color: var(--ink); font: inherit; }
+.field .h { font-size: 11px; color: var(--muted); margin-top: 2px; }
+.gridrow { display: grid; grid-template-columns: 200px 1fr auto; gap: 8px; margin: 6px 0; }
+.logpre { max-height: 320px; overflow: auto; white-space: pre-wrap; margin: 6px 0 0; }
+.banner { max-width: 640px; margin: 80px auto; padding: 24px; background: var(--panel); border: 1px solid var(--line); border-radius: 14px; }
+@media (max-width: 860px) { .gridrow { grid-template-columns: 1fr; } }
 #editorCanvas { width: 100%; aspect-ratio: 4/3; background: var(--bg); border-radius: 10px; cursor: crosshair; display: block; }
 @media (max-width: 860px) {
   .layout { grid-template-columns: 1fr; } aside { position: static; max-height: 260px; border-right: 0; border-bottom: 1px solid var(--line); }
@@ -87,6 +110,7 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
   <h1>Self-Driving Cars Lab</h1>
   <span class="live"><span class="dot" id="liveDot"></span><span id="liveText">connecting…</span></span>
   <nav>
+    <button data-tab="new">＋ New run</button>
     <button data-tab="run" class="active">Run</button>
     <button data-tab="compare">Compare</button>
     <button data-tab="batches">Batches</button>
@@ -100,14 +124,56 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
     <div id="runList"></div>
   </aside>
   <main>
+    <!-- ================= NEW RUN ================= -->
+    <section id="tab-new" class="hidden">
+      <div class="card">
+        <h2>1 · Tracks</h2>
+        <div class="sub">The cars learn on the <b>training tracks</b>. Every generation the best car is also driven on the <b>test tracks</b>, which it never trains on, to measure whether what it learned carries over to new tracks.</div>
+        <div class="field"><label>Training tracks</label><div id="pkTrain"></div></div>
+        <div class="field" style="margin-top:10px"><label>Unseen test tracks</label><div id="pkTest"></div></div>
+        <div class="field" style="max-width:420px;margin-top:6px"><label>Extra random training tracks per generation</label>
+          <input type="number" id="fRandomPerGen" min="0" value="0">
+          <div class="h">0 = off. With 1–3, every generation also trains on brand-new random tracks, so the cars can't memorise one route.</div></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h2>2 · Settings</h2>
+        <div class="sub">The defaults work well; generations and population are the main ones to change.</div>
+        <div id="settingsForm"></div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <h2>3 · Batch (optional)</h2>
+        <label><input type="checkbox" id="asBatch"> Compare several settings: run every combination below × several random seeds, then compare them in the Batches tab</label>
+        <div id="batchBox" class="hidden" style="margin-top:8px">
+          <div id="gridRows"></div>
+          <button class="btn small" id="addGrid">+ add a setting to vary</button>
+          <div class="form-grid" style="margin-top:10px;max-width:420px">
+            <div class="field"><label>Seeds per combination</label><input type="number" id="bSeeds" value="3" min="1"></div>
+            <div class="field"><label>Runs in parallel</label><input type="number" id="bParallel" value="2" min="1"></div>
+          </div>
+          <div class="h" style="font-size:12px;color:var(--muted)" id="batchCount"></div>
+        </div>
+      </div>
+      <div class="card" style="margin-top:12px">
+        <div class="row">
+          <div class="field" style="flex:1;min-width:200px"><label>Name</label><input type="text" id="runName" class="txt" placeholder="e.g. circuit_only (optional)"></div>
+          <button class="btn primary big" id="startBtn" style="align-self:flex-end">▶ Start training</button>
+        </div>
+        <div id="newErr" class="err hidden"></div>
+      </div>
+    </section>
+
     <!-- ================= RUN ================= -->
     <section id="tab-run">
-      <div id="runEmpty" class="empty">No runs yet. Start one with <code>python train.py</code></div>
+      <div id="runEmpty" class="empty">No runs yet.<br><br><button class="btn primary big" onclick="goTab('new')">＋ Start your first training run</button></div>
       <div id="runView" class="hidden">
         <div class="row" style="justify-content:space-between;margin-bottom:10px">
-          <div><b id="runTitle" style="font-size:18px"></b> <span id="runState" class="badge"></span></div>
+          <div><b id="runTitle" style="font-size:18px"></b> <span id="runState" class="badge"></span>
+            <button class="btn small" id="stopBtn">■ Stop</button>
+            <button class="btn small" id="cloneBtn" title="open the New run form with this run's settings">Reuse settings</button>
+            <button class="btn small danger" id="delBtn">Delete</button></div>
           <div style="font-size:12px;color:var(--muted)" id="runTracks"></div>
         </div>
+        <div id="runErr" class="err hidden"></div>
         <div class="kpis" id="kpis"></div>
         <div class="cards">
           <div class="card"><h2>Fitness per generation</h2>
@@ -150,6 +216,18 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
           <img id="imgSheet" alt="track images" style="width:100%;border-radius:10px;border:1px solid var(--line);background:#fff">
         </div>
 
+        <div class="card" style="margin-top:12px">
+          <h2>Test this car on other tracks</h2>
+          <div class="sub">Drops the run's best car onto any tracks. The results also appear as a replay and as track images above.</div>
+          <div id="pkEval"></div>
+          <button class="btn primary" id="evalBtn">Test car</button> <span id="evalMsg" style="font-size:12px;color:var(--muted)"></span>
+          <div id="evalErr" class="err hidden"></div>
+          <table id="evalTable" style="margin-top:8px"></table>
+        </div>
+
+        <details class="card" style="margin-top:12px" id="logBox"><summary style="cursor:pointer"><b>Training log</b> <span style="font-size:12px;color:var(--muted)">(console output)</span></summary>
+          <pre id="logPre" class="logpre">no log for this run (it was started from the command line)</pre></details>
+
         <details class="card" style="margin-top:12px"><summary style="cursor:pointer"><b>Run config</b></summary>
           <pre id="cfgPre"></pre></details>
       </div>
@@ -188,17 +266,26 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
           <input id="edName" value="my_track" style="padding:5px 8px;border-radius:8px;border:1px solid var(--line);background:var(--panel);color:var(--ink)">
           <button class="btn" id="edUndo">Undo</button>
           <button class="btn" id="edClear">Clear</button>
-          <button class="btn primary" id="edSave">Download JSON</button>
+          <button class="btn primary" id="edSaveProj">Save to project</button>
+          <button class="btn" id="edSave">Download JSON</button>
         </div>
         <canvas id="editorCanvas"></canvas>
-        <p style="font-size:13px">Save the file into <code>tracks/</code>, then:</p>
-        <pre id="edCmd"></pre>
+        <div id="edMsg"></div>
+        <p style="font-size:13px;color:var(--muted)">Saved tracks go into the project's <code>tracks/</code> folder and appear in every track picker (New run, Test this car).</p>
+        <pre id="edCmd" class="hidden"></pre>
       </div>
     </section>
   </main>
 </div>
 
 <script>
+if (location.protocol === 'file:') {
+  document.body.innerHTML = `<div class="banner"><h2>Start the app first</h2>
+  <p>This page needs the small Python server. In a terminal, in the project folder, run:</p>
+  <pre>python app.py</pre><p>It opens the dashboard in your browser automatically (at <code>http://localhost:8000</code>).
+  Opening <code>index.html</code> directly as a file can't work, because the browser can't start training or read results that way.</p></div>`;
+  throw new Error('opened as file');
+}
 // ===================================================================== state
 const S = { runs: [], batches: [], sel: null, compare: new Set(), metrics: {}, status: {},
   tab: 'run', replay: null, driveIdx: 0, frame: 0, playing: true, lastT: 0, cfg: {} };
@@ -208,6 +295,14 @@ const $ = (id) => document.getElementById(id);
 const pct = (v) => v == null ? '–' : (100 * v).toFixed(1) + '%';
 const fx = (v, d = 3) => v == null ? '–' : (+v).toFixed(d);
 
+async function post(url, body) {
+  const r = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({ error: `server error ${r.status}` }));
+  if (!r.ok) throw new Error(j.error || r.statusText);
+  return j;
+}
+function showErr(id, msg) { const e = $(id); e.textContent = msg || ''; e.classList.toggle('hidden', !msg); }
+function goTab(t) { document.querySelector(`nav button[data-tab=${t}]`).click(); }
 async function getJSON(url) { const r = await fetch(url, { cache: 'no-store' }); if (!r.ok) throw new Error(url); return r.json(); }
 async function getMetrics(id) {
   const r = await fetch(`/runs/${id}/metrics.jsonl`, { cache: 'no-store' });
@@ -219,7 +314,7 @@ async function getMetrics(id) {
 document.querySelectorAll('nav button').forEach((b) => b.onclick = () => {
   S.tab = b.dataset.tab;
   document.querySelectorAll('nav button').forEach((x) => x.classList.toggle('active', x === b));
-  ['run', 'compare', 'batches', 'editor'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== S.tab));
+  ['new', 'run', 'compare', 'batches', 'editor'].forEach((t) => $('tab-' + t).classList.toggle('hidden', t !== S.tab));
   render();
   if (S.tab === 'editor') drawEditor();
 });
@@ -230,7 +325,7 @@ async function poll() {
     const d = await getJSON('/api/runs');
     S.runs = d.runs.sort((a, b) => (b.started || 0) - (a.started || 0));
     S.batches = d.batches;
-    const running = S.runs.filter((r) => r.state === 'running').length;
+    const running = S.runs.filter((r) => r.state === 'running' || r.state === 'starting').length;
     $('liveDot').classList.toggle('on', running > 0);
     $('liveText').textContent = running ? `${running} run${running > 1 ? 's' : ''} training` : 'idle';
     if (!S.sel && S.runs.length) selectRun(S.runs[0].id);
@@ -247,7 +342,10 @@ async function poll() {
     renderSidebar(); render();
     const st = S.status[S.sel];
     if (st && st.replays.length && (!S.replayList || S.replayList.length !== st.replays.length)) fillReplaySel(st);
-  } catch (e) { $('liveText').textContent = 'server not reachable — run python serve.py'; $('liveDot').classList.remove('on'); }
+    if (S.pendingSel && S.runs.some((r) => r.id === S.pendingSel)) { const id = S.pendingSel; S.pendingSel = null; selectRun(id); }
+    if (!S.firstPollDone) { S.firstPollDone = true; if (!S.runs.length) goTab('new'); }
+    if ($('logBox').open && S.sel) refreshLog();
+  } catch (e) { $('liveText').textContent = 'lost connection to the app — is "python app.py" still running?'; $('liveDot').classList.remove('on'); }
   setTimeout(poll, 2000);
 }
 
@@ -338,10 +436,14 @@ function render() {
 }
 
 function renderRun() {
-  const m = S.metrics[S.sel], st = S.status[S.sel], cfg = S.cfg[S.sel];
+  const st = S.status[S.sel], cfg = S.cfg[S.sel], m = S.metrics[S.sel] || [];
   $('runEmpty').classList.toggle('hidden', !!st); $('runView').classList.toggle('hidden', !st);
-  if (!st || !m) return;
+  if (!st) return;
+  if (!cfg && st.state !== 'starting') getJSON(`/runs/${S.sel}/config.json`).then((c) => { S.cfg[st.id] = c; }).catch(() => {});
   $('runTitle').textContent = st.id; const b = $('runState'); b.textContent = st.state; b.className = 'badge ' + st.state;
+  $('stopBtn').classList.toggle('hidden', !(st.state === 'running' || st.state === 'starting'));
+  $('delBtn').classList.toggle('hidden', st.state === 'running' || st.state === 'starting');
+  showErr('runErr', st.state === 'failed' ? 'This run crashed. End of its log:\n\n' + (st.error || '(no log)') : '');
   if (cfg) {
     $('runTracks').innerHTML = `train: <b>${cfg.train_tracks.join(', ')}</b>${cfg.random_per_gen ? ` + ${cfg.random_per_gen} random/gen` : ''} · brain ${cfg.layers.join('→')}`;
     $('cfgPre').textContent = JSON.stringify(cfg, null, 1);
@@ -521,9 +623,12 @@ $('cmpMetric').onchange = renderCompare; $('cmpSmooth').onchange = renderCompare
 // ===================================================================== batches
 function renderBatches() {
   const el = $('batchList');
-  if (!S.batches.length) { el.innerHTML = '<div class="empty">No batches yet. Try <code>python batch.py --name demo --grid "hidden=4 | 12"</code></div>'; return; }
+  if (!S.batches.length) { el.innerHTML = '<div class="empty">No batches yet. In <b>＋ New run</b>, tick “Compare several settings” to start one.</div>'; return; }
   if (!el.dataset.built || el.dataset.built !== S.batches.map((b) => b.name).join()) {
-    el.innerHTML = S.batches.map((b, i) => `<div class="card" style="margin-bottom:12px"><h2>${b.name}</h2>
+    el.innerHTML = S.batches.map((b, i) => `<div class="card" style="margin-bottom:12px"><h2>${b.name} <span class="badge" id="bst${i}"></span>
+      <button class="btn small" id="bstop${i}" onclick="stopBatch('${b.name}')">■ Stop batch</button>
+      <button class="btn small danger" id="bdel${i}" onclick="deleteRun('${b.name}', true)">Delete</button>
+      <a href="/runs/${b.name}/batch_log.txt" target="_blank" style="font-size:12px;font-weight:400">log</a></h2>
       <div class="sub">${b.axes.map(([k, v]) => `<code>${k}</code> ∈ {${v.join(' | ')}}`).join(' × ') || 'default'} · ${b.seeds} seeds · ${b.generations} gens</div>
       <div class="cards"><div><div class="sub">Unseen-track progress (mean over seeds, band = min–max)</div><div class="chart" id="bch${i}a"></div></div>
       <div><div class="sub">Training best fitness (mean over seeds)</div><div class="chart" id="bch${i}b"></div></div></div>
@@ -531,6 +636,10 @@ function renderBatches() {
     el.dataset.built = S.batches.map((b) => b.name).join();
   }
   S.batches.forEach((b, i) => {
+    const bs = $(`bst${i}`);
+    if (bs) { const state = b.running ? (b.stopping ? 'stopping' : 'running') : 'finished';
+      bs.textContent = state; bs.className = 'badge ' + (b.running ? 'running' : '');
+      $(`bstop${i}`).classList.toggle('hidden', !b.running || b.stopping); $(`bdel${i}`).classList.toggle('hidden', b.running); }
     const configs = {};
     b.runs.forEach((r) => { const label = r.replace(/__s\d+$/, ''); (configs[label] = configs[label] || []).push(`${b.name}/${r}`); });
     const agg = (ids, key, fn) => { const ms = ids.map((id) => S.metrics[id] || []); const G = Math.max(0, ...ms.map((m) => m.length));
@@ -608,6 +717,146 @@ $('edSave').onclick = () => {
 };
 window.addEventListener('resize', () => { render(); if (S.tab === 'editor') drawEditor(); });
 
+// ===================================================================== track pickers
+const OPT = { data: null, pickers: [] };
+const trackLabel = (s) => s.replace('preset:', '').replace('tracks/', '').replace('.json', '').replace(/^random:(\d+)\.\.(\d+)$/, 'random $1–$2').replace('random:', 'random ');
+function picker(host, initial) {
+  const P = { specs: [...initial], host };
+  P.draw = () => {
+    const o = OPT.data || { presets: [], files: [] };
+    host.innerHTML = `<div class="chips">${P.specs.map((sp, i) => `<div class="chip" title="${sp}">
+      <button class="x" data-i="${i}" title="remove">×</button>
+      <img loading="lazy" src="/api/track.png?spec=${encodeURIComponent(sp)}&size=208" alt="">
+      <span>${trackLabel(sp)}</span></div>`).join('') || '<span style="color:var(--muted);font-size:12px">no tracks yet</span>'}</div>
+      <div class="row"><select class="addSel"><option value="">＋ add a track…</option>
+        <optgroup label="Hand-designed">${o.presets.map((p) => `<option value="preset:${p}">${p}</option><option value="preset:${p}:rev">${p} (reversed)</option>`).join('')}</optgroup>
+        ${o.files.length ? `<optgroup label="Your drawn tracks">${o.files.map((f) => `<option value="${f}">${trackLabel(f)}</option>`).join('')}</optgroup>` : ''}
+        <option value="__random">random tracks (by seed number)…</option></select>
+        <input class="txt rndIn hidden" style="width:160px" placeholder="seed, e.g. 7 or 1..5"><button class="btn small rndBtn hidden">Add</button></div>`;
+    host.querySelectorAll('.x').forEach((b) => b.onclick = () => { P.specs.splice(+b.dataset.i, 1); P.draw(); P.onchange && P.onchange(); });
+    const sel = host.querySelector('.addSel'), inp = host.querySelector('.rndIn'), btn = host.querySelector('.rndBtn');
+    sel.onchange = () => {
+      if (sel.value === '__random') { inp.classList.remove('hidden'); btn.classList.remove('hidden'); inp.focus(); return; }
+      if (sel.value && !P.specs.includes(sel.value)) { P.specs.push(sel.value); P.draw(); P.onchange && P.onchange(); }
+      sel.value = '';
+    };
+    const addRnd = () => { const v = inp.value.trim().replace(/\s/g, '');
+      if (!/^\d+(\.\.\d+)?$/.test(v)) { inp.style.borderColor = 'var(--bad)'; return; }
+      P.specs.push('random:' + v); P.draw(); P.onchange && P.onchange(); };
+    btn.onclick = addRnd; inp.onkeydown = (e) => { if (e.key === 'Enter') addRnd(); };
+  };
+  P.set = (specs) => { P.specs = [...specs]; P.draw(); };
+  OPT.pickers.push(P); P.draw();
+  return P;
+}
+
+// ===================================================================== new-run form
+const NF = { inputs: {} };
+const pretty = (d) => d.replace(/_/g, ' ');
+async function loadOptions() {
+  OPT.data = await getJSON('/api/options');
+  if (!NF.built) buildNewForm(); else OPT.pickers.forEach((p) => p.draw());
+}
+function buildNewForm() {
+  NF.built = true;
+  const o = OPT.data;
+  NF.train = picker($('pkTrain'), o.default_train);
+  NF.test = picker($('pkTest'), o.default_test);
+  NF.eval = picker($('pkEval'), ['random:5000..5009', 'preset:hairpins']);
+  const LABEL = { pop: 'population', fov: 'sensor angle (fov)', hidden: 'hidden layers', elite: 'elite (kept)', replay_top: 'cars in replays' };
+  $('settingsForm').innerHTML = o.groups.filter((g) => g.fields.some((f) => f.dest !== 'random_per_gen')).map((g) => `<h3 style="font-size:12px;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:12px 0 6px">${g.title}</h3>
+    <div class="form-grid">${g.fields.filter((f) => f.dest !== 'random_per_gen').map((f) => `<div class="field"><label for="f_${f.dest}">${LABEL[f.dest] || pretty(f.dest)}</label>
+      ${f.type === 'bool' ? `<input type="checkbox" id="f_${f.dest}" ${f.default ? 'checked' : ''}>`
+        : `<input type="${f.type === 'str' ? 'text' : 'number'}" ${f.type === 'float' ? 'step="any"' : ''} id="f_${f.dest}" value="${f.default ?? ''}">`}
+      <div class="h">${f.help}</div></div>`).join('')}</div>`).join('');
+  o.groups.forEach((g) => g.fields.forEach((f) => { NF.inputs[f.dest] = f; }));
+  $('asBatch').onchange = () => { $('batchBox').classList.toggle('hidden', !$('asBatch').checked); if ($('asBatch').checked && !$('gridRows').children.length) addGridRow('train', 'preset:circuit | preset:circuit,preset:oval,random:1..2'); batchCount(); };
+  $('addGrid').onclick = () => addGridRow('hidden', '4 | 12');
+  ['bSeeds'].forEach((id) => $(id).oninput = batchCount);
+}
+function addGridRow(dest, values) {
+  const d = document.createElement('div'); d.className = 'gridrow';
+  const opts = [['train', 'training tracks'], ...Object.keys(NF.inputs).map((k) => [k, pretty(k)])];
+  d.innerHTML = `<select>${opts.map(([v, l]) => `<option value="${v}" ${v === dest ? 'selected' : ''}>${l}</option>`).join('')}</select>
+    <input class="txt" value="${values}" placeholder="values separated by |  e.g.  4 | 12 | 16,8">
+    <button class="btn small danger">remove</button>`;
+  d.querySelector('button').onclick = () => { d.remove(); batchCount(); };
+  d.querySelector('input').oninput = batchCount;
+  $('gridRows').appendChild(d); batchCount();
+}
+function gridSpec() { return [...$('gridRows').children].map((r) => [r.querySelector('select').value, r.querySelector('input').value]).filter(([, v]) => v.trim()); }
+function batchCount() {
+  const n = gridSpec().reduce((a, [, v]) => a * v.split('|').filter((x) => x.trim()).length, 1), seeds = +$('bSeeds').value || 1;
+  $('batchCount').textContent = `${n} combination${n > 1 ? 's' : ''} × ${seeds} seed${seeds > 1 ? 's' : ''} = ${n * seeds} training runs`;
+}
+function readSettings() {
+  const out = { random_per_gen: +$('fRandomPerGen').value || 0 };
+  Object.values(NF.inputs).forEach((f) => { if (f.dest === 'random_per_gen') return; const el = $('f_' + f.dest); if (!el) return;
+    out[f.dest] = f.type === 'bool' ? el.checked : f.type === 'int' ? parseInt(el.value, 10) : f.type === 'float' ? parseFloat(el.value) : el.value; });
+  return out;
+}
+$('startBtn').onclick = async () => {
+  showErr('newErr', ''); $('startBtn').disabled = true;
+  try {
+    const body = { name: $('runName').value.trim(), settings: readSettings(), train: NF.train.specs, test: NF.test.specs };
+    if ($('asBatch').checked) body.batch = { grid: gridSpec(), seeds: +$('bSeeds').value, parallel: +$('bParallel').value };
+    const r = await post('/api/start', body);
+    if (r.batch) { goTab('batches'); } else { S.pendingSel = r.id; S.sel = null; goTab('run'); }
+    $('runName').value = '';
+  } catch (e) { showErr('newErr', e.message); }
+  $('startBtn').disabled = false;
+};
+$('cloneBtn').onclick = () => {
+  const cfg = S.cfg[S.sel]; if (!cfg || !NF.built) return;
+  NF.train.set(cfg.train_tracks || []); NF.test.set(cfg.test_tracks || []);
+  $('fRandomPerGen').value = cfg.random_per_gen || 0;
+  Object.values(NF.inputs).forEach((f) => { const el = $('f_' + f.dest); if (!el || cfg[f.dest] === undefined) return;
+    if (f.type === 'bool') el.checked = !!cfg[f.dest]; else el.value = cfg[f.dest]; });
+  $('runName').value = (cfg.name || '') + '_v2'; goTab('new');
+};
+
+// ===================================================================== run controls
+$('stopBtn').onclick = async () => { try { await post('/api/stop', { id: S.sel }); $('stopBtn').textContent = 'stopping…'; setTimeout(() => $('stopBtn').textContent = '■ Stop', 4000); } catch (e) { alert(e.message); } };
+async function deleteRun(id, isBatch) {
+  if (!confirm(`Delete ${isBatch ? 'batch' : 'run'} "${id}" and all its files?`)) return;
+  try { await post('/api/delete', { id }); if (S.sel && (S.sel === id || S.sel.startsWith(id + '/'))) S.sel = null;
+    const el = $('batchList'); el.dataset.built = ''; } catch (e) { alert(e.message); }
+}
+$('delBtn').onclick = () => deleteRun(S.sel, false);
+async function stopBatch(name) { try { await post('/api/stop', { batch: name }); } catch (e) { alert(e.message); } }
+async function refreshLog() {
+  const st = S.status[S.sel]; if (!st || !st.log) { $('logPre').textContent = 'no log for this run (it was started from the command line)'; return; }
+  try { const r = await fetch(`/runs/${S.sel}/log.txt`, { cache: 'no-store' }); const t = await r.text();
+    const pre = $('logPre'), atEnd = pre.scrollTop + pre.clientHeight >= pre.scrollHeight - 10;
+    pre.textContent = t.slice(-20000); if (atEnd) pre.scrollTop = pre.scrollHeight; } catch (e) {}
+}
+$('logBox').ontoggle = () => { if ($('logBox').open) refreshLog(); };
+$('evalBtn').onclick = async () => {
+  showErr('evalErr', ''); $('evalBtn').disabled = true; $('evalMsg').textContent = 'driving… (a few seconds per track)'; $('evalTable').innerHTML = '';
+  try {
+    const r = await post('/api/evaluate', { id: S.sel, tracks: NF.eval.specs });
+    $('evalMsg').innerHTML = `mean progress <b>${pct(r.mean_progress)}</b>, finished <b>${pct(r.finish_rate)}</b> · <a href="/runs/${S.sel}/${r.sheet}" target="_blank">track image</a>`;
+    $('evalTable').innerHTML = '<tr><th>track</th><th class="n">progress</th><th class="n">finished</th><th class="n">time</th></tr>' +
+      r.rows.map((x) => `<tr><td>${x.track}</td><td class="n">${pct(x.progress)}</td><td class="n ${x.finished ? 'ok' : 'no'}">${x.finished ? 'yes' : 'no'}</td><td class="n">${x.time ? x.time.toFixed(1) + ' s' : '–'}</td></tr>`).join('');
+    S.replayList = null;
+  } catch (e) { showErr('evalErr', e.message); $('evalMsg').textContent = ''; }
+  $('evalBtn').disabled = false;
+};
+
+// ===================================================================== editor: save into project
+$('edSaveProj').onclick = async () => {
+  if (ED.pts.length < 3) return alert('Place at least 3 points first');
+  try {
+    const r = await post('/api/tracks', { name: $('edName').value || 'my_track', width: +$('edWidth').value, points: ED.pts });
+    await loadOptions();
+    $('edMsg').innerHTML = `<div class="${r.problems.length ? 'err' : 'note'}">Saved as <code>${r.spec}</code>; it is now in the track pickers.
+      ${r.problems.length ? '<br>Warning: ' + r.problems.join('; ') + '. Cars may struggle; try a wider track or gentler corners.' : ''}
+      <br><button class="btn small" onclick="NF.train.set([...NF.train.specs, '${r.spec}']); goTab('new')">Train on it</button>
+      <button class="btn small" onclick="NF.eval.set([...NF.eval.specs, '${r.spec}']); goTab('run')">Test a trained car on it</button></div>`;
+  } catch (e) { $('edMsg').innerHTML = `<div class="err">${e.message}</div>`; }
+};
+
+loadOptions().catch((e) => showErr('newErr', 'Could not load options from the app: ' + e.message));
 poll();
 </script>
 </body>

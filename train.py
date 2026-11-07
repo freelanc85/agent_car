@@ -8,7 +8,7 @@ Train self-driving cars with neuroevolution — headless.
 
 Every generation the current champion is also driven on held-out *test*
 tracks it never trained on; that's the generalisation score.
-Watch progress live with:  python serve.py   ->  http://localhost:8000
+Easier: run  python app.py  and do everything from the web page.
 """
 from __future__ import annotations
 
@@ -34,8 +34,8 @@ def build_parser():
     g.add_argument("--name", default=None, help="run name (default: timestamp)")
     g.add_argument("--batch", default=None, help="group runs under runs/<batch>/")
     g.add_argument("--runs-dir", default="runs")
-    g.add_argument("--seed", type=int, default=0)
-    g.add_argument("--generations", type=int, default=60)
+    g.add_argument("--seed", type=int, default=0, help="random seed; same seed + settings = same result")
+    g.add_argument("--generations", type=int, default=60, help="how many rounds of evolution (~1 s each)")
     g.add_argument("--quiet", action="store_true")
     g = p.add_argument_group("tracks")
     g.add_argument("--train", default="preset:circuit", help="comma list of training tracks")
@@ -43,19 +43,19 @@ def build_parser():
     g.add_argument("--random-per-gen", type=int, default=0,
                    help="also train on N brand-new random tracks every generation")
     g = p.add_argument_group("evolution")
-    g.add_argument("--pop", type=int, default=100)
-    g.add_argument("--elite", type=int, default=4)
-    g.add_argument("--tournament", type=int, default=5)
-    g.add_argument("--crossover-rate", type=float, default=0.7)
-    g.add_argument("--mutation-rate", type=float, default=0.1)
-    g.add_argument("--mutation-sigma", type=float, default=0.3)
+    g.add_argument("--pop", type=int, default=100, help="cars per generation")
+    g.add_argument("--elite", type=int, default=4, help="best cars copied unchanged to the next generation")
+    g.add_argument("--tournament", type=int, default=5, help="parent selection: best of N random cars (higher = greedier)")
+    g.add_argument("--crossover-rate", type=float, default=0.7, help="chance a child mixes two parents (else copies one)")
+    g.add_argument("--mutation-rate", type=float, default=0.1, help="fraction of weights nudged in each child")
+    g.add_argument("--mutation-sigma", type=float, default=0.3, help="how big the nudges are")
     g = p.add_argument_group("car / network")
     g.add_argument("--hidden", default="12", help="hidden layer sizes, e.g. 16,8")
-    g.add_argument("--rays", type=int, default=7)
-    g.add_argument("--fov", type=float, default=180.0)
-    g.add_argument("--laps", type=int, default=2)
-    g.add_argument("--max-steps", type=int, default=1500)
-    g.add_argument("--sensor-noise", type=float, default=0.0)
+    g.add_argument("--rays", type=int, default=7, help="number of distance sensors")
+    g.add_argument("--fov", type=float, default=180.0, help="angle the sensors cover, in degrees")
+    g.add_argument("--laps", type=int, default=2, help="laps needed to finish")
+    g.add_argument("--max-steps", type=int, default=1500, help="time limit per drive (steps of 0.1 s)")
+    g.add_argument("--sensor-noise", type=float, default=0.0, help="random noise on sensors, e.g. 0.03 (helps robustness)")
     g = p.add_argument_group("logging")
     g.add_argument("--replay-every", type=int, default=10, help="record a replay every N gens")
     g.add_argument("--replay-top", type=int, default=20, help="cars shown in training replays")
@@ -97,6 +97,10 @@ def main(argv=None):
     state = "done"
     try:
         for gen in range(1, args.generations + 1):
+            if (log.dir / "STOP").exists():  # written by the web UI's Stop button
+                state = "stopped"
+                say("stop requested — saving")
+                break
             t0 = time.time()
             sims = list(train_sims)
             if args.random_per_gen:

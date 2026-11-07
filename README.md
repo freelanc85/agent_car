@@ -5,17 +5,35 @@ evolving small neural networks), like the
 [deepCars](https://arztsamuel.github.io/en/projects/unity/deepCars/deepCars.html) Unity project,
 but in ~600 lines of plain Python + numpy and a browser dashboard.
 
-* Training is **headless** and fast (≈1 s per generation of 100 cars).
-* Every generation is logged; a **live web dashboard** shows the curves, batches of
-  runs, and replays of the cars driving (including what their sensors see).
-* Every generation the best car is also tested on **tracks it has never seen**,
-  so you can watch whether the learning transfers.
+Everything is done from a web page: pick tracks, change settings, start/stop
+training or whole batches of runs, watch live charts and replays, test a
+trained car on other tracks, and draw your own tracks.
 
-```
+## Quick start
+
+```bash
 pip install numpy          # the only dependency
-python train.py            # train on preset:circuit for 60 generations
-python serve.py            # in a 2nd terminal -> open http://localhost:8000
+python app.py              # opens http://localhost:8000 in your browser
 ```
+
+Keep that terminal window open while you use the page. In the page:
+
+1. **＋ New run**: choose training tracks and unseen test tracks (with pictures),
+   adjust settings if you like, and press **Start training**.
+2. **Run**: live metrics, replays, track images, the training log, a **Stop**
+   button, and **Test this car on other tracks**.
+3. **Batches**: tick "Compare several settings" on the New run page to run a grid
+   of settings × seeds and compare them here.
+4. **Track editor**: draw a track and **Save to project**; it then appears in every
+   track picker.
+
+> The page must be opened through `python app.py`. Double-clicking
+> `dashboard/index.html` will not work: the browser can't start training that way.
+> If port 8000 is taken, the app picks the next free one and prints the address.
+
+Training is headless and fast (about 1 s per generation of 100 cars). Every
+generation the best car is also tested on **tracks it has never seen**, so you
+can watch whether the learning transfers.
 
 ## How it works
 
@@ -56,7 +74,9 @@ Things that improve transfer (try them, compare in the dashboard):
 * sensor noise: `--sensor-noise 0.03`
 * include both directions: `--train preset:circuit,preset:circuit:rev`
 
-## Commands
+## Command line (optional)
+
+Everything above can also be scripted; the web app runs these same scripts.
 
 ```bash
 # single run (all options: python train.py -h)
@@ -69,9 +89,6 @@ python batch.py --name tracks_vs_transfer --seeds 3 --generations 50 \
 
 # drop a trained car on any tracks (and save a replay for the dashboard)
 python evaluate.py runs/my_run --tracks random:5000..5019,preset:hairpins --save
-
-# dashboard (works while training is running)
-python serve.py
 ```
 
 Track specs (used by `--train`, `--test`, `--tracks`):
@@ -79,7 +96,7 @@ Track specs (used by `--train`, `--test`, `--tracks`):
 `random:42`, ranges `random:1..10`, or a JSON file like `tracks/example.json`.
 Draw your own in the dashboard's **Track editor** tab and save it to `tracks/`.
 
-## Dashboard
+## Dashboard tabs
 
 * **Run** – KPIs, fitness curves, training-vs-unseen progress, per-track transfer,
   and a replay player (top-20 cars on the training track, the champion on every

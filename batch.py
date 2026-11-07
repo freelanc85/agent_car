@@ -71,11 +71,12 @@ def main():
 
     batch_dir = Path(args.runs_dir) / args.name
     batch_dir.mkdir(parents=True, exist_ok=True)
+    (batch_dir / "STOP").unlink(missing_ok=True)
     (batch_dir / "batch.json").write_text(json.dumps(dict(
         name=args.name, axes=axes, seeds=args.seeds, generations=args.generations,
         extra=extra, started=time.time(), runs=[f"{l}__s{s}" for l, s, _ in jobs]), indent=1))
     print(f"batch '{args.name}': {len(combos)} configs x {args.seeds} seeds = {len(jobs)} runs, "
-          f"{args.parallel} in parallel. Live view: python serve.py")
+          f"{args.parallel} in parallel. Live view: python app.py")
 
     done = 0
     t0 = time.time()
@@ -83,6 +84,10 @@ def main():
     def work(job):
         nonlocal done
         label, seed, cmd = job
+        if (batch_dir / "STOP").exists():  # web UI's "Stop batch"
+            done += 1
+            print(f"  [{done}/{len(jobs)}] {label} seed {seed} skipped (batch stopped)")
+            return
         r = subprocess.run(cmd, cwd=HERE, capture_output=True, text=True,
                            env={**os.environ, "OMP_NUM_THREADS": "1", "OPENBLAS_NUM_THREADS": "1"})
         done += 1

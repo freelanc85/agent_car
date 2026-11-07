@@ -245,6 +245,8 @@ def load_track(spec: str) -> Track:
     spec = spec.strip()
     if spec.startswith("preset:"):
         parts = spec.split(":")
+        if parts[1] not in PRESETS:
+            raise ValueError(f"unknown preset '{parts[1]}' (choose from {', '.join(PRESETS)})")
         return preset_track(parts[1], reverse=len(parts) > 2 and parts[2] == "rev")
     if spec.startswith("random:"):
         return random_track(int(spec.split(":")[1]))
