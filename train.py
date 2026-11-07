@@ -21,7 +21,7 @@ import numpy as np
 
 from selfdrive.brain import Brain
 from selfdrive.evolve import GeneticAlgorithm
-from selfdrive.runlog import RunLog, record_drive
+from selfdrive.runlog import RunLog, drive_paths, record_drive
 from selfdrive.sim import SimConfig, Simulator
 from selfdrive.track import load_track, parse_track_list
 
@@ -84,6 +84,8 @@ def main(argv=None):
                   test_tracks=test_specs, sim=cfg.to_dict(), layers=brain.layers,
                   genome_size=brain.size, command=" ".join(sys.argv))
     log = RunLog(Path(args.runs_dir) / run_id, config)
+    track_list = [(s.track, "train") for s in train_sims] + [(s.track, "test") for s in test_sims]
+    log.save_images("tracks", track_list, title="training and test tracks")
     say = (lambda *a: None) if args.quiet else print
     say(f"[{run_id}] brain {brain.layers} ({brain.size} weights), pop {args.pop}")
     say(f"  train: {', '.join(train_specs)}" + (f" + {args.random_per_gen} random/gen" if args.random_per_gen else ""))
@@ -142,6 +144,10 @@ def main(argv=None):
                 drives = [record_drive(train_sims[0] if train_sims else sims[0], brain, top, "train")]
                 drives += [record_drive(s, brain, best_g[None], "test") for s in test_sims]
                 log.save_replay(f"gen_{gen:04d}", f"generation {gen}", drives)
+                shown = [train_sims[0] if train_sims else sims[0], *test_sims]
+                log.save_images("champion", [(s.track, r) for s, r in zip(shown, ["train"] + ["test"] * len(test_sims))],
+                                drive_paths(drives, [s.track for s in shown]),
+                                title=f"best car's path, generation {gen}")
 
             pop = ga.next_generation(pop, fitness)
     except KeyboardInterrupt:

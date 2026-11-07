@@ -143,6 +143,13 @@ pre { background: var(--bg); border: 1px solid var(--line); border-radius: 8px; 
           </div>
         </div>
 
+        <div class="card" style="margin-top:12px">
+          <h2>Track images (PNG)</h2>
+          <div class="sub">Saved in the run's <code>images/</code> folder. "tracks" = the training and test tracks; "champion" = the best car's path at the latest snapshot (green = finished, red X = where it crashed).</div>
+          <div class="row"><select id="imgSel"></select><span id="imgLinks" style="font-size:12px"></span></div>
+          <img id="imgSheet" alt="track images" style="width:100%;border-radius:10px;border:1px solid var(--line);background:#fff">
+        </div>
+
         <details class="card" style="margin-top:12px"><summary style="cursor:pointer"><b>Run config</b></summary>
           <pre id="cfgPre"></pre></details>
       </div>
@@ -339,6 +346,7 @@ function renderRun() {
     $('runTracks').innerHTML = `train: <b>${cfg.train_tracks.join(', ')}</b>${cfg.random_per_gen ? ` + ${cfg.random_per_gen} random/gen` : ''} · brain ${cfg.layers.join('→')}`;
     $('cfgPre').textContent = JSON.stringify(cfg, null, 1);
   }
+  renderImages(st);
   const last = m[m.length - 1] || {}, bestTest = m.reduce((a, r) => Math.max(a, r.test_progress || 0), 0);
   const k = [
     ['Generation', `${last.gen ?? 0}<span style="font-size:13px;color:var(--muted)">/${st.total_generations}</span>`, last.seconds ? `${last.seconds.toFixed(1)} s/gen` : ''],
@@ -368,6 +376,27 @@ function renderRun() {
     { name: `champion time (÷${tmax.toFixed(0)} s)`, color: PALETTE[4], data: m.map((r) => [r.gen, r.best_finish_time ? r.best_finish_time / tmax : null]) }],
   { yMin: 0, yMax: 1, yFmt: (v) => (v * 100).toFixed(0) + '%' });
 }
+
+// ===================================================================== track images
+function renderImages(st) {
+  const sets = st.images || {}, keys = Object.keys(sets), sel = $('imgSel');
+  const sig = st.id + JSON.stringify(sets) + st.updated;
+  if (sel.dataset.sig === sig) return;
+  const cur = sel.value;
+  sel.innerHTML = keys.map((k) => `<option value="${k}">${k} — ${sets[k].title || ''}</option>`).join('');
+  sel.value = keys.includes(cur) ? cur : (keys.includes('champion') ? 'champion' : keys[0] || '');
+  sel.dataset.sig = sig;
+  showImages(st);
+}
+function showImages(st) {
+  const set = (st.images || {})[$('imgSel').value];
+  $('imgSheet').classList.toggle('hidden', !set);
+  if (!set) { $('imgLinks').textContent = 'no images yet'; return; }
+  const sheet = set.files.find((f) => f.endsWith('all_tracks.png')) || set.files[0];
+  $('imgSheet').src = `/runs/${st.id}/${sheet}?t=${st.updated}`;
+  $('imgLinks').innerHTML = set.files.map((f) => `<a href="/runs/${st.id}/${f}" target="_blank">${f.split('/').pop()}</a>`).join(' · ');
+}
+$('imgSel').onchange = () => showImages(S.status[S.sel]);
 
 // ===================================================================== replay
 function fillReplaySel(st) {

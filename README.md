@@ -86,6 +86,7 @@ Draw your own in the dashboard's **Track editor** tab and save it to `tracks/`.
   test track; thumbnails show where it crashed).
 * **Compare** – tick runs in the sidebar, overlay any metric.
 * **Batches** – mean ± min/max over seeds per configuration, summary table.
+* **Track images** (Run tab) – the PNGs above, with download links.
 * **Track editor** – click to draw a track, download as JSON.
 
 ## Output files
@@ -97,6 +98,16 @@ runs/<batch?>/<run>/
   status.json       running/done, generation, list of replays
   best_genome.json  champion network weights
   replays/*.json    recorded drives
+  images/tracks/    PNG of every training + test track (+ all_tracks.png overview)
+  images/champion/  same, with the best car's path drawn on (green = finished,
+                    red X = crash point); refreshed at every replay snapshot
+  images/eval_*/    written by evaluate.py
+```
+
+PNG images of any tracks, without training:
+
+```bash
+python render_tracks.py preset:circuit random:1..8 tracks/example.json --out track_images/
 ```
 
 Using it from Jupyter:

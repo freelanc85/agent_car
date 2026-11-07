@@ -17,7 +17,8 @@ from pathlib import Path
 import numpy as np
 
 from selfdrive.brain import Brain
-from selfdrive.runlog import record_drive, write_json
+from selfdrive.render import save_track_images
+from selfdrive.runlog import drive_paths, record_drive, write_json
 from selfdrive.sim import SimConfig, Simulator
 from selfdrive.track import load_track, parse_track_list
 
@@ -40,23 +41,28 @@ def main():
     cfg = SimConfig(**sim_cfg)
 
     print(f"{'track':<28}{'progress':>9}{'finished':>10}{'time (s)':>10}")
-    rows, drives = [], []
+    rows, drives, tracks = [], [], []
     for spec in parse_track_list(args.tracks):
         sim = Simulator(load_track(spec), cfg)
+        tracks.append(sim.track)
         r = sim.run(brain, genome)
         rows.append((spec, r["progress"][0], r["finished"][0], r["finish_time"][0]))
         t = "-" if np.isnan(r["finish_time"][0]) else f"{r['finish_time'][0]:.1f}"
         print(f"{spec:<28}{100*r['progress'][0]:8.1f}%{str(bool(r['finished'][0])):>10}{t:>10}")
-        if args.save:
-            drives.append(record_drive(sim, brain, genome, "eval"))
+        drives.append(record_drive(sim, brain, genome, "eval"))
     prog = np.mean([r[1] for r in rows])
     fin = np.mean([r[2] for r in rows])
     print(f"\n{len(rows)} tracks: mean progress {100*prog:.1f}%, finished {100*fin:.0f}%")
 
+    key = time.strftime("eval_%H%M%S")
+    files = save_track_images(run / "images" / key, [(t, "eval") for t in tracks], drive_paths(drives, tracks))
+    print(f"track images (with the car's path): {files[-1]}")
+
     if args.save:
         status_p = run / "status.json"
         status = json.loads(status_p.read_text())
-        key = time.strftime("eval_%H%M%S")
+        status.setdefault("images", {})[key] = dict(
+            title=f"eval: {args.tracks}", files=[f.relative_to(run).as_posix() for f in files])
         write_json(run / "replays" / f"{key}.json", dict(label=f"eval: {args.tracks}", drives=drives))
         status["replays"].append(dict(key=key, label=f"eval: {args.tracks}"))
         write_json(status_p, status)

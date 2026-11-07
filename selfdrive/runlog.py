@@ -31,6 +31,16 @@ def _num(x):
     return None if np.isnan(x) else round(x, 4)
 
 
+def drive_paths(drives: list[dict], tracks) -> dict:
+    """Best car of each recorded drive -> {track name: (path, finished, caption)} for images."""
+    out = {}
+    for d, tr in zip(drives, tracks):
+        car = d["cars"][0]
+        cap = f"done {car['finish_time']}s" if car["finished"] else f"{100 * (car['progress'] or 0):.0f}%"
+        out[tr.name] = (np.array(car["path"]), car["finished"], cap)
+    return out
+
+
 def record_drive(sim: Simulator, brain: Brain, genomes: np.ndarray, role: str,
                  fitness_order: bool = True, every: int = 2) -> dict:
     """Drive `genomes` on sim's track and return a replay entry for the viewer.
@@ -87,6 +97,15 @@ class RunLog:
         self.status["replays"] = [r for r in self.status["replays"] if r["key"] != key]
         self.status["replays"].append(dict(key=key, label=label))
         self._save_status()
+
+    def save_images(self, subdir: str, tracks, paths=None, title: str = ""):
+        """PNG of every track (optionally with a car's path) -> images/<subdir>/."""
+        from .render import save_track_images
+        files = save_track_images(self.dir / "images" / subdir, tracks, paths)
+        self.status.setdefault("images", {})[subdir] = dict(
+            title=title, files=[f.relative_to(self.dir).as_posix() for f in files])
+        self._save_status()
+        return files
 
     def finish(self, state: str = "done"):
         self.status["state"] = state
